@@ -143,7 +143,7 @@ func main() {
 		Log.Errorf("%v", err)
 		os.Exit(2)
 	}
-	SetDownloadSpeedLimit(downloadSpeedLimit)
+	InitDownloader(0, downloadSpeedLimit)
 
 	// read the configuration
 	configPath := filepath.Join(*argConfigPath, "config.json")

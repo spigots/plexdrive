@@ -15,7 +15,6 @@ import (
 	"strings"
 
 	. "github.com/claudetech/loggo/default"
-	"github.com/fujiwara/shapeio"
 	"github.com/orcaman/concurrent-map"
 )
 
@@ -23,7 +22,6 @@ var instances cmap.ConcurrentMap
 var chunkPath string
 var chunkSize int64
 var chunkDirMaxSize int64
-var speedLimit int64
 
 func init() {
 	instances = cmap.New()
@@ -76,11 +74,6 @@ func SetChunkSize(size int64) {
 // SetChunkDirMaxSize sets the maximum size of the chunk directory
 func SetChunkDirMaxSize(size int64) {
 	chunkDirMaxSize = size
-}
-
-// SetDownloadSpeedLimit sets the maximum bytes per seconds to be downloaded
-func SetDownloadSpeedLimit(limit int64) {
-	speedLimit = limit
 }
 
 // NewBuffer creates a new buffer instance
@@ -196,12 +189,6 @@ func (b *Buffer) ReadBytes(start, size int64, delay int32) ([]byte, error) {
 		return nil, fmt.Errorf("Could not request object %v from API", b.object.ObjectID)
 	}
 	defer res.Body.Close()
-	reader := shapeio.NewReader(res.Body)
-
-	// set the speed limit
-	if speedLimit > 0 {
-		reader.SetRateLimit(float64(speedLimit))
-	}
 
 	if res.StatusCode != 206 {
 		if res.StatusCode != 403 {
@@ -212,7 +199,7 @@ func (b *Buffer) ReadBytes(start, size int64, delay int32) ([]byte, error) {
 		if delay > 8 {
 			return nil, fmt.Errorf("Maximum throttle interval has been reached")
 		}
-		bytes, err := ioutil.ReadAll(reader)
+		bytes, err := ioutil.ReadAll(res.Body)
 		if nil != err {
 			Log.Debugf("%v", err)
 			return nil, fmt.Errorf("Could not read body of 403 error")
@@ -231,23 +218,17 @@ func (b *Buffer) ReadBytes(start, size int64, delay int32) ([]byte, error) {
 		}
 	}
 
-	bytes, err := ioutil.ReadAll(reader)
+	download, errors := GetDownloader().Download(res.Body)
+	bytes := <-download
+	err = <-errors
 	if nil != err {
 		Log.Debugf("%v", err)
-		return nil, fmt.Errorf("Could not read objects %v API response", b.object.ObjectID)
+		return nil, fmt.Errorf("Could not download chunk content for object %v", b.object.ObjectID)
 	}
 
-	f, err := os.Create(filename)
-	if nil != err {
+	if err := ioutil.WriteFile(filename, bytes, 0777); nil != err {
 		Log.Debugf("%v", err)
-		return nil, fmt.Errorf("Could not create chunk temp file %v", filename)
-	}
-	defer f.Close()
-
-	_, err = f.Write(bytes)
-	if nil != err {
-		Log.Debugf("%v", err)
-		return nil, fmt.Errorf("Could not write chunk data to temp file %v", filename)
+		return nil, fmt.Errorf("Could not write chunk temp file %v", filename)
 	}
 
 	sOffset := int64(math.Min(float64(fOffset), float64(len(bytes))))
