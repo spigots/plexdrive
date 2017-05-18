@@ -133,17 +133,17 @@ func (b *Buffer) ReadBytes(start, size int64, preload bool, delay int32) ([]byte
 	Log.Tracef("Getting object %v - chunk %v - offset %v for %v bytes",
 		b.object.ObjectID, strconv.Itoa(int(offset)), fOffset, size)
 
-	if !preload && b.preload && uint64(offsetEnd) < b.object.Size {
-		defer func() {
-			go func() {
-				preloadStart := strconv.Itoa(int(offsetEnd))
-				if !b.chunks.Has(preloadStart) {
-					b.chunks.Set(preloadStart, true)
-					b.ReadBytes(offsetEnd, size, true, 0)
-				}
-			}()
-		}()
-	}
+	// if !preload && b.preload && uint64(offsetEnd) < b.object.Size {
+	// 	defer func() {
+	// 		go func() {
+	// 			preloadStart := strconv.Itoa(int(offsetEnd))
+	// 			if !b.chunks.Has(preloadStart) {
+	// 				b.chunks.Set(preloadStart, true)
+	// 				b.ReadBytes(offsetEnd, size, true, 0)
+	// 			}
+	// 		}()
+	// 	}()
+	// }
 
 	filename := filepath.Join(b.tempDir, strconv.Itoa(int(offset)))
 	if f, err := os.Open(filename); nil == err {
