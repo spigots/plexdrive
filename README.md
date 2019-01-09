@@ -1,21 +1,26 @@
+<a href="https://github.com/dweidenfeld/plexdrive"><img src="logo/banner.png" alt="Plexdrive" /></a>
 [![Build Status](https://travis-ci.org/dweidenfeld/plexdrive.svg?branch=master)](https://travis-ci.org/dweidenfeld/plexdrive)
 
-# Plexdrive
-Plexdrive allows you to mount your Google Drive account as fuse filesystem.
+__Plexdrive__ allows you to mount your Google Drive account as read-only fuse filesystem, with direct delete option on the filesystem.
 
-The project is comparable to projects like [rclone](https://rclone.org/) or [node-gdrive-fuse](https://github.com/thejinx0r/node-gdrive-fuse), but optimized for media streaming e.g. with plex ;)
+The project is comparable to projects like [rclone](https://rclone.org/), 
+[google-drive-ocamlfuse](https://github.com/astrada/google-drive-ocamlfuse) or 
+[node-gdrive-fuse](https://github.com/thejinx0r/node-gdrive-fuse), 
+but optimized for media streaming e.g. with plex ;)
 
-I tried using rclone a long time, but got API Quota errors ever day, or more times a day. So I decided to try node-gdrive-fuse. The problem here was, that it missed some of my media files, so I started implementing my own file system library.
+Please note that plexdrive doesn't currently support writes (adding new files or modifications), it only supports reading existing files and deletion. 
+
+I tried using rclone for a long time, but got API Quota errors every day and/or multiple times per day, so I decided to try node-gdrive-fuse. The problem here was that it missed some of my media files, so as a result I started implementing my own file system library.
 
 _If you like the project, feel free to make a small [donation via PayPal](https://www.paypal.me/dowei). Otherwise support the project by implementing new functions / bugfixes yourself and create pull requests :)_
 
 ## Installation
-1. First you should install fuse on your system
+1. First you need to install fuse on your system 
 2. Then you should download the newest release from the [GitHub release page](https://github.com/dweidenfeld/plexdrive/releases).
 3. Create your own client id and client secret (see [https://rclone.org/drive/#making-your-own-client-id](https://rclone.org/drive/#making-your-own-client-id)).
-4. Run the application like this
+4. Sample command line for plexdrive
 ```
-./plexdrive /path/to/my/mount
+./plexdrive mount -c /root/.plexdrive -o allow_other /mnt/plexdrive
 ```
 
 ### Crypted mount with rclone
@@ -23,25 +28,29 @@ You can use [this tutorial](TUTORIAL.md) for instruction how to mount an encrypt
 
 ## Usage
 ```
-Usage of ./plexdrive:
+Usage of ./plexdrive mount:
+  --cache-file string
+    	Path the the cache file (default "~/.plexdrive/cache.bolt")
+  --chunk-check-threads int
+    	The number of threads to use for checking chunk existence (default 2)
+  --chunk-load-ahead int
+    	The number of chunks that should be read ahead (default 3)
+  --chunk-load-threads int
+    	The number of threads to use for downloading chunks (default 2)
   --chunk-size string
-    	The size of each chunk that is downloaded (units: B, K, M, G) (default "5M")
-  --clear-chunk-age duration
-    	The maximum age of a cached chunk file (default 30m0s)
-  --clear-chunk-interval duration
-    	The time to wait till clearing the chunk directory (default 1m0s)
-  --clear-chunk-max-size string
-    	The maximum size of the temporary chunk directory (units: B, K, M, G)
+    	The size of each chunk that is downloaded (units: B, K, M, G) (default "10M")
   -c, --config string
     	The path to the configuration directory (default "~/.plexdrive")
   -o, --fuse-options string
     	Fuse mount options (e.g. -fuse-options allow_other,...)
   --gid int
     	Set the mounts GID (-1 = default permissions) (default -1)
+  --max-chunks int
+    	The maximum number of chunks to be stored on disk (default 10)
   --refresh-interval duration
-    	The time to wait till checking for changes (default 5m0s)
-  -t, --temp string
-    	Path to a temporary directory to store temporary data (default "/tmp")
+    	The time to wait till checking for changes (default 1m0s)
+  --root-node-id string
+    	The ID of the root node to mount (use this for only mount a sub directory) (default "root")
   --uid int
     	Set the mounts UID (-1 = default permissions) (default -1)
   --umask value
@@ -53,7 +62,7 @@ Usage of ./plexdrive:
 ```
 
 ### Support 
-Slack support is available on [our Slack channel](https://plexdrive.slack.com/shared_invite/MTg1NTg5NzY2Njc4LTE0OTUwNDU3NzAtMjJjNWRiMTAxMg). 
+Slack support is available on [our Slack channel](https://join.slack.com/t/plexdrive/shared_invite/MjM2MTMzMjY2MTc5LTE1MDQ2MDE4NDQtOTc0N2RiY2UxNw). 
 Feel free to ask configuration and setup questions here.
 
 ### Supported FUSE mount options
@@ -71,16 +80,14 @@ Feel free to ask configuration and setup questions here.
 * volume_name=myname
 * read_only
 
-### Cache by usage
-If you set the --clear-chunk-age to e.g. 24 hours your files will be stored
-for 24 hours on your harddisk. This prevents you from downloading the file
-everytime it is accessed so will have a faster playback start, avoid stuttering
-and spare API calls. 
 
-Everytime a file is accessed it will the caching time will be extended.
-E.g. You access a file at 20:00, then it will be deleted on the next day at
-20:00. If you access the file e.g. at 18:00 the next day, the file will be
-deleted the day after at 18:00 and so on.
+### Root-Node-ID
+You can use the option `root-node-id` to specify a folder id that should be mounted as
+the root folder. This option will not prevent plexdrive from getting the changes for your
+whole Google Drive structure. It will only "display" another folder as root instead of the
+real root folder.
+Don't expect any performance improvement or something else. This option is only for your
+personal folder structuring.
 
 # Contribute
 If you want to support the project by implementing functions / fixing bugs
